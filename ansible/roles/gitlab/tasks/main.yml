@@ -1,0 +1,65 @@
+---
+- name: Instalacja zależności GitLab
+  apt:
+    name:
+      - curl
+      - openssh-server
+      - ca-certificates
+      - tzdata
+      - perl
+      - postfix
+    state: present
+
+- name: Dodanie klucza GPG GitLab
+  apt_key:
+    url: https://packages.gitlab.com/gitlab/gitlab-ce/gpgkey
+    state: present
+
+- name: Dodanie repozytorium GitLab
+  apt_repository:
+    repo: "deb https://packages.gitlab.com/gitlab/gitlab-ce/ubuntu/ {{ ansible_distribution_release }} main"
+    state: present
+
+- name: Instalacja GitLab CE
+  apt:
+    name: gitlab-ce
+    state: present
+  environment:
+    EXTERNAL_URL: "http://gitlab.{{ domain_name }}"
+
+- name: Konfiguracja GitLab - integracja z FreeIPA
+  blockinfile:
+    path: /etc/gitlab/gitlab.rb
+    block: |
+      gitlab_rails['ldap_enabled'] = true
+      gitlab_rails['ldap_servers'] = {
+        'main' => {
+          'label' => 'FreeIPA',
+          'host' => '{{ hostvars["srv-main"].ansible_default_ipv4.address }}',
+          'port' => 389,
+          'uid' => 'uid',
+          'bind_dn' => 'uid=admin,cn=users,cn=accounts,dc=example,dc=local',
+          'password' => '{{ freeipa_admin_password }}',
+          'encryption' => 'plain',
+          'verify_certificates' => false,
+          'base' => 'dc=example,dc=local',
+          'user_filter' => '',
+          'attributes' => {
+            'username' => ['uid'],
+            'email' => ['mail'],
+            'name' => 'cn',
+            'first_name' => 'givenName',
+            'last_name' => 'sn'
+          }
+        }
+      }
+  notify: reconfigure gitlab
+
+- name: Konfiguracja firewall dla GitLab
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - '8080'  # GitLab HTTP
+    - '2222'  # GitLab SSH

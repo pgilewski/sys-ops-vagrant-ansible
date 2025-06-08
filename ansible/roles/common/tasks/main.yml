@@ -1,0 +1,68 @@
+---
+- name: Aktualizacja cache apt
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Aktualizacja wszystkich pakietów
+  apt:
+    upgrade: dist
+    autoremove: yes
+    autoclean: yes
+
+- name: Instalacja podstawowych pakietów
+  apt:
+    name:
+      - vim
+      - htop
+      - net-tools
+      - curl
+      - wget
+      - git
+      - ufw
+      - chrony
+      - python3-pip
+      - dnsutils
+      - traceroute
+    state: present
+
+- name: Konfiguracja strefy czasowej
+  timezone:
+    name: "{{ timezone }}"
+
+- name: Konfiguracja hostname
+  hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Aktualizacja /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    line: "{{ hostvars[item].ansible_host }} {{ item }}.{{ domain_name }} {{ item }}"
+    state: present
+  loop: "{{ groups['all'] }}"
+
+- name: Konfiguracja IPv6 (wyłączenie)
+  sysctl:
+    name: "{{ item }}"
+    value: '0'
+    state: present
+    reload: yes
+  loop:
+    - net.ipv6.conf.all.disable_ipv6
+    - net.ipv6.conf.default.disable_ipv6
+    - net.ipv6.conf.lo.disable_ipv6
+
+- name: Konfiguracja firewall - podstawowe reguły
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - '22'  # SSH
+  notify: restart ufw
+
+- name: Włączenie firewall
+  ufw:
+    state: enabled
+    policy: deny
+    direction: incoming

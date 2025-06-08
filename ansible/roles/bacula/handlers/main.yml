@@ -1,0 +1,15 @@
+---
+- name: restart bacula-director
+  systemd:
+    name: bacula-director
+    state: restarted
+
+- name: restart bacula-storage
+  systemd:
+    name: bacula-sd
+    state: restarted
+
+- name: touch db initialized
+  file:
+    path: /var/lib/bacula/.db_initialized
+    state: touch

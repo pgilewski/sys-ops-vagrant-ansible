@@ -1,0 +1,49 @@
+---
+- name: Instalacja Samba
+  apt:
+    name:
+      - samba
+      - samba-common-bin
+      - smbclient
+      - winbind
+      - libpam-winbind
+      - libnss-winbind
+    state: present
+
+- name: Utworzenie katalogów współdzielonych
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: '/srv/samba/public', owner: 'nobody', group: 'nogroup', mode: '0777' }
+    - { path: '/srv/samba/shared', owner: 'root', group: 'users', mode: '0770' }
+    - { path: '/srv/samba/private', owner: 'root', group: 'root', mode: '0700' }
+
+- name: Konfiguracja Samba
+  template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+    backup: yes
+  notify: restart samba
+
+- name: Konfiguracja firewall dla Samba
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - '139'
+    - '445'
+
+- name: Włączenie i uruchomienie Samba
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  loop:
+    - smbd
+    - nmbd
+    - winbind

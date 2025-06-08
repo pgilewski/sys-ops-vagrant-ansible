@@ -1,0 +1,92 @@
+---
+- name: Instalacja MySQL dla Bacula
+  apt:
+    name:
+      - mysql-server
+      - python3-mysqldb
+    state: present
+
+- name: Zabezpieczenie instalacji MySQL
+  mysql_user:
+    name: root
+    password: "{{ mysql_root_password }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    host: localhost
+    state: present
+
+- name: Instalacja komponentów Bacula
+  apt:
+    name:
+      - bacula-server
+      - bacula-client
+      - bacula-console
+    state: present
+
+- name: Utworzenie bazy danych Bacula
+  mysql_db:
+    name: bacula
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+
+- name: Utworzenie użytkownika MySQL dla Bacula
+  mysql_user:
+    name: bacula
+    password: "{{ bacula_mysql_password }}"
+    priv: 'bacula.*:ALL'
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+
+- name: Sprawdzenie czy baza jest zainicjalizowana
+  stat:
+    path: /var/lib/bacula/.db_initialized
+  register: db_initialized
+
+- name: Inicjalizacja tabel Bacula
+  shell: |
+    /usr/share/bacula-director/make_mysql_tables -u bacula -p{{ bacula_mysql_password }}
+    touch /var/lib/bacula/.db_initialized
+  when: not db_initialized.stat.exists
+
+- name: Konfiguracja Bacula Director
+  template:
+    src: bacula-dir.conf.j2
+    dest: /etc/bacula/bacula-dir.conf
+    backup: yes
+  notify: restart bacula-director
+
+- name: Konfiguracja Bacula Storage
+  template:
+    src: bacula-sd.conf.j2
+    dest: /etc/bacula/bacula-sd.conf
+    backup: yes
+  notify: restart bacula-storage
+
+- name: Utworzenie katalogu dla backupów
+  file:
+    path: /backup
+    state: directory
+    owner: bacula
+    group: bacula
+    mode: '0750'
+
+- name: Konfiguracja firewall dla Bacula
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - '9101'  # Director
+    - '9102'  # File Daemon
+    - '9103'  # Storage Daemon
+
+- name: Włączenie i uruchomienie usług Bacula
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  loop:
+    - bacula-director
+    - bacula-sd
+    - bacula-fd

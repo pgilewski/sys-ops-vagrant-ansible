@@ -1,0 +1,14 @@
+<VirtualHost *:80>
+    ServerName {{ ansible_fqdn }}
+    ServerAlias www.{{ ansible_fqdn }}
+    DocumentRoot /var/www/{{ domain_name }}
+    
+    <Directory /var/www/{{ domain_name }}>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    ErrorLog ${APACHE_LOG_DIR}/{{ domain_name }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ domain_name }}-access.log combined
+</VirtualHost>

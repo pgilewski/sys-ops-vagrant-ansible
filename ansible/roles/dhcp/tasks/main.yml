@@ -1,0 +1,31 @@
+---
+- name: Instalacja ISC DHCP Server
+  apt:
+    name: isc-dhcp-server
+    state: present
+
+- name: Konfiguracja interfejsu dla DHCP
+  lineinfile:
+    path: /etc/default/isc-dhcp-server
+    regexp: '^INTERFACESv4='
+    line: 'INTERFACESv4="enp0s8"'
+
+- name: Backup oryginalnej konfiguracji
+  copy:
+    src: /etc/dhcp/dhcpd.conf
+    dest: /etc/dhcp/dhcpd.conf.backup
+    remote_src: yes
+    force: no
+
+- name: Konfiguracja DHCP Server
+  template:
+    src: dhcpd.conf.j2
+    dest: /etc/dhcp/dhcpd.conf
+    backup: yes
+  notify: restart dhcp
+
+- name: Włączenie i uruchomienie DHCP
+  systemd:
+    name: isc-dhcp-server
+    enabled: yes
+    state: started

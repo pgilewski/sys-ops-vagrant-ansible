@@ -1,0 +1,154 @@
+Director {
+  Name = {{ inventory_hostname }}-dir
+  DIRport = 9101
+  QueryFile = "/etc/bacula/scripts/query.sql"
+  WorkingDirectory = "/var/lib/bacula"
+  PidDirectory = "/run/bacula"
+  Maximum Concurrent Jobs = 20
+  Password = "DirectorPassword"
+  Messages = Daemon
+}
+
+JobDefs {
+  Name = "DefaultJob"
+  Type = Backup
+  Level = Incremental
+  Client = {{ inventory_hostname }}-fd
+  FileSet = "Full Set"
+  Schedule = "WeeklyCycle"
+  Storage = File
+  Messages = Standard
+  Pool = File
+  SpoolAttributes = yes
+  Priority = 10
+  Write Bootstrap = "/var/lib/bacula/%c.bsr"
+}
+
+Job {
+  Name = "BackupCatalog"
+  JobDefs = "DefaultJob"
+  Level = Full
+  FileSet="Catalog"
+  Schedule = "WeeklyCycleAfterBackup"
+  RunBeforeJob = "/etc/bacula/scripts/make_catalog_backup.pl MyCatalog"
+  RunAfterJob  = "/etc/bacula/scripts/delete_catalog_backup"
+  Priority = 11
+}
+
+FileSet {
+  Name = "Full Set"
+  Include {
+    Options {
+      signature = MD5
+      compression = GZIP
+    }
+    File = /etc
+    File = /home
+    File = /var/www
+  }
+  Exclude {
+    File = /var/lib/bacula
+    File = /tmp
+    File = /proc
+    File = /tmp
+    File = /.journal
+    File = /.fsck
+  }
+}
+
+Schedule {
+  Name = "WeeklyCycle"
+  Run = Full 1st sun at 23:05
+  Run = Differential 2nd-5th sun at 23:05
+  Run = Incremental mon-sat at 23:05
+}
+
+FileSet {
+  Name = "Catalog"
+  Include {
+    Options {
+      signature = MD5
+    }
+    File = "/var/lib/bacula/bacula.sql"
+  }
+}
+
+Client {
+  Name = {{ inventory_hostname }}-fd
+  Address = {{ ansible_default_ipv4.address }}
+  FDPort = 9102
+  Catalog = MyCatalog
+  Password = "ClientPassword"
+  File Retention = 60 days
+  Job Retention = 6 months
+  AutoPrune = yes
+}
+
+Storage {
+  Name = File
+  Address = {{ ansible_default_ipv4.address }}
+  SDPort = 9103
+  Password = "StoragePassword"
+  Device = FileStorage
+  Media Type = File
+  Maximum Concurrent Jobs = 10
+}
+
+Catalog {
+  Name = MyCatalog
+  dbname = "bacula"
+  dbuser = "bacula"
+  dbpassword = "{{ bacula_mysql_password }}"
+}
+
+Messages {
+  Name = Standard
+  mailcommand = "/usr/sbin/bsmtp -h localhost -f \"\(Bacula\) \<%r\>\" -s \"Bacula: %t %e of %c %l\" %r"
+  operatorcommand = "/usr/sbin/bsmtp -h localhost -f \"\(Bacula\) \<%r\>\" -s \"Bacula: Intervention needed for %j\" %r"
+  mail = root@localhost = all, !skipped
+  operator = root@localhost = mount
+  console = all, !skipped, !saved
+  append = "/var/log/bacula/bacula.log" = all, !skipped
+  catalog = all
+}
+
+Messages {
+  Name = Daemon
+  mailcommand = "/usr/sbin/bsmtp -h localhost -f \"\(Bacula\) \<%r\>\" -s \"Bacula daemon message\" %r"
+  mail = root@localhost = all, !skipped
+  console = all, !skipped, !saved
+  append = "/var/log/bacula/bacula.log" = all, !skipped
+}
+
+Pool {
+  Name = Default
+  Pool Type = Backup
+  Recycle = yes
+  AutoPrune = yes
+  Volume Retention = 365 days
+  Maximum Volume Bytes = 50G
+  Maximum Volumes = 100
+  Label Format = "Vol-"
+}
+
+Pool {
+  Name = File
+  Pool Type = Backup
+  Recycle = yes
+  AutoPrune = yes
+  Volume Retention = 365 days
+  Maximum Volume Bytes = 50G
+  Maximum Volumes = 100
+  Label Format = "Vol-"
+}
+
+Pool {
+  Name = Scratch
+  Pool Type = Backup
+}
+
+Console {
+  Name = {{ inventory_hostname }}-mon
+  Password = "ConsolePassword"
+  CommandACL = status, .status
+}

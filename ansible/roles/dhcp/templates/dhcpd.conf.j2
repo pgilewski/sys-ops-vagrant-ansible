@@ -1,0 +1,26 @@
+# DHCP Server Configuration
+default-lease-time 600;
+max-lease-time 7200;
+authoritative;
+
+# DNS servers
+option domain-name "{{ domain_name }}";
+option domain-name-servers {{ ansible_default_ipv4.address }}, 8.8.8.8;
+
+# Subnet configuration
+subnet 192.168.56.0 netmask 255.255.255.0 {
+    range 192.168.56.150 192.168.56.200;
+    option routers 192.168.56.1;
+    option broadcast-address 192.168.56.255;
+    
+    # Rezerwacje dla znanych klientów
+    host client1 {
+        hardware ethernet {{ hostvars['client1'].ansible_default_ipv4.macaddress | default('08:00:27:00:00:01') }};
+        fixed-address 192.168.56.101;
+    }
+    
+    host client2 {
+        hardware ethernet {{ hostvars['client2'].ansible_default_ipv4.macaddress | default('08:00:27:00:00:02') }};
+        fixed-address 192.168.56.102;
+    }
+}

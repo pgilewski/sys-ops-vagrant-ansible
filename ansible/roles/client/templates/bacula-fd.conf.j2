@@ -1,0 +1,24 @@
+Director {
+  Name = srv-backup-dir
+  Password = "ClientPassword"
+}
+
+Director {
+  Name = srv-backup-mon
+  Password = "ConsolePassword"
+  Monitor = yes
+}
+
+FileDaemon {
+  Name = {{ inventory_hostname }}-fd
+  FDport = 9102
+  WorkingDirectory = /var/lib/bacula
+  Pid Directory = /run/bacula
+  Maximum Concurrent Jobs = 20
+  FDAddress = {{ ansible_default_ipv4.address }}
+}
+
+Messages {
+  Name = Standard
+  director = srv-backup-dir = all, !skipped, !restored
+}

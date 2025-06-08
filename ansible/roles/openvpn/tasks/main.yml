@@ -1,0 +1,87 @@
+---
+- name: Instalacja OpenVPN i Easy-RSA
+  apt:
+    name:
+      - openvpn
+      - easy-rsa
+    state: present
+
+- name: Utworzenie katalogu dla Easy-RSA
+  file:
+    path: /etc/openvpn/easy-rsa
+    state: directory
+
+- name: Kopiowanie Easy-RSA
+  shell: cp -r /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/
+  args:
+    creates: /etc/openvpn/easy-rsa/easyrsa
+
+- name: Inicjalizacja PKI
+  shell: |
+    cd /etc/openvpn/easy-rsa
+    ./easyrsa init-pki
+  args:
+    creates: /etc/openvpn/easy-rsa/pki
+
+- name: Generowanie CA
+  shell: |
+    cd /etc/openvpn/easy-rsa
+    echo "ca" | ./easyrsa build-ca nopass
+  args:
+    creates: /etc/openvpn/easy-rsa/pki/ca.crt
+
+- name: Generowanie certyfikatu serwera
+  shell: |
+    cd /etc/openvpn/easy-rsa
+    ./easyrsa gen-req server nopass
+    ./easyrsa sign-req server server
+  args:
+    creates: /etc/openvpn/easy-rsa/pki/issued/server.crt
+
+- name: Generowanie DH
+  shell: |
+    cd /etc/openvpn/easy-rsa
+    ./easyrsa gen-dh
+  args:
+    creates: /etc/openvpn/easy-rsa/pki/dh.pem
+
+- name: Generowanie ta.key
+  shell: openvpn --genkey --secret /etc/openvpn/ta.key
+  args:
+    creates: /etc/openvpn/ta.key
+
+- name: Kopiowanie certyfikatów
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    remote_src: yes
+  loop:
+    - { src: '/etc/openvpn/easy-rsa/pki/ca.crt', dest: '/etc/openvpn/' }
+    - { src: '/etc/openvpn/easy-rsa/pki/issued/server.crt', dest: '/etc/openvpn/' }
+    - { src: '/etc/openvpn/easy-rsa/pki/private/server.key', dest: '/etc/openvpn/' }
+    - { src: '/etc/openvpn/easy-rsa/pki/dh.pem', dest: '/etc/openvpn/' }
+
+- name: Konfiguracja OpenVPN Server
+  template:
+    src: server.conf.j2
+    dest: /etc/openvpn/server.conf
+  notify: restart openvpn
+
+- name: Włączenie forwarding IP
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    reload: yes
+
+- name: Konfiguracja firewall dla OpenVPN
+  ufw:
+    rule: allow
+    port: '1194'
+    proto: udp
+
+- name: Włączenie i uruchomienie OpenVPN
+  systemd:
+    name: openvpn@server
+    enabled: yes
+    state: started

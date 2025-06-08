@@ -1,0 +1,22 @@
+all:
+  children:
+    servers:
+      hosts:
+        srv-main:
+          ansible_host: 192.168.56.10
+          ansible_user: vagrant
+          ansible_ssh_private_key_file: ../.vagrant/machines/srv-main/virtualbox/private_key
+        srv-backup:
+          ansible_host: 192.168.56.11
+          ansible_user: vagrant
+          ansible_ssh_private_key_file: ../.vagrant/machines/srv-backup/virtualbox/private_key
+    clients:
+      hosts:
+        client1:
+          ansible_host: 192.168.56.101
+          ansible_user: vagrant
+          ansible_ssh_private_key_file: ../.vagrant/machines/client1/virtualbox/private_key
+        client2:
+          ansible_host: 192.168.56.102
+          ansible_user: vagrant
+          ansible_ssh_private_key_file: ../.vagrant/machines/client2/virtualbox/private_key

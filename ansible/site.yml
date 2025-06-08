@@ -1,0 +1,29 @@
+---
+- name: Konfiguracja podstawowa wszystkich hostów
+  hosts: all
+  become: yes
+  roles:
+    - common
+
+- name: Konfiguracja serwera głównego
+  hosts: srv-main
+  become: yes
+  roles:
+    - freeipa
+    - dhcp
+    - samba
+    - apache
+    - gitlab
+    - openvpn
+
+- name: Konfiguracja serwera backup
+  hosts: srv-backup
+  become: yes
+  roles:
+    - bacula
+
+- name: Konfiguracja klientów
+  hosts: clients
+  become: yes
+  roles:
+    - client

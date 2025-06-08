@@ -1,0 +1,84 @@
+---
+- name: Instalacja pakietów klienckich
+  apt:
+    name:
+      - freeipa-client
+      - sssd
+      - sssd-tools
+      - libnss-sss
+      - libpam-sss
+      - samba-common-bin
+      - cifs-utils
+      - bacula-client
+      - ubuntu-desktop
+      - gdm3
+    state: present
+
+- name: Konfiguracja rozwiązywania nazw
+  lineinfile:
+    path: /etc/resolv.conf
+    line: "nameserver {{ hostvars['srv-main'].ansible_default_ipv4.address }}"
+    insertbefore: BOF
+
+- name: Sprawdzenie czy klient jest dołączony do domeny
+  stat:
+    path: /etc/ipa/default.conf
+  register: ipa_joined
+
+- name: Dołączenie do domeny FreeIPA
+  command: >
+    ipa-client-install
+    --unattended
+    --principal=admin
+    --password={{ freeipa_admin_password }}
+    --server={{ hostvars['srv-main'].ansible_fqdn }}
+    --domain={{ freeipa_domain }}
+    --realm={{ freeipa_realm }}
+    --mkhomedir
+    --no-ntp
+  when: not ipa_joined.stat.exists
+
+- name: Utworzenie katalogów montowania
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /mnt/shared
+    - /mnt/public
+
+- name: Utworzenie pliku credentials dla Samba
+  copy:
+    content: |
+      username={{ test_users[0].name }}
+      password={{ test_users[0].password }}
+      domain=EXAMPLE
+    dest: /etc/samba/credentials
+    mode: '0600'
+
+- name: Konfiguracja automatycznego montowania udziałów Samba
+  blockinfile:
+    path: /etc/fstab
+    block: |
+      //srv-main.{{ domain_name }}/shared /mnt/shared cifs credentials=/etc/samba/credentials,uid=1000,gid=1000,iocharset=utf8,file_mode=0664,dir_mode=0775,_netdev 0 0
+      //srv-main.{{ domain_name }}/public /mnt/public cifs guest,uid=1000,gid=1000,iocharset=utf8,_netdev 0 0
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - Samba mounts"
+
+- name: Konfiguracja GDM dla logowania domenowego
+  lineinfile:
+    path: /etc/gdm3/custom.conf
+    regexp: '^#?\s*WaylandEnable='
+    line: 'WaylandEnable=false'
+    insertafter: '\[daemon\]'
+
+- name: Konfiguracja Bacula File Daemon
+  template:
+    src: bacula-fd.conf.j2
+    dest: /etc/bacula/bacula-fd.conf
+    backup: yes
+  notify: restart bacula-fd
+
+- name: Włączenie i uruchomienie Bacula FD
+  systemd:
+    name: bacula-fd
+    enabled: yes
+    state: started

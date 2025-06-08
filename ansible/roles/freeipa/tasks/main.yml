@@ -1,0 +1,69 @@
+---
+- name: Ustawienie FQDN w /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    line: "{{ ansible_default_ipv4.address }} {{ ansible_fqdn }} {{ ansible_hostname }}"
+    insertbefore: BOF
+
+- name: Instalacja pakietów FreeIPA
+  apt:
+    name:
+      - freeipa-server
+      - freeipa-server-dns
+      - freeipa-client
+    state: present
+
+- name: Konfiguracja firewall dla FreeIPA
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  loop:
+    - { port: '80', proto: 'tcp' }      # HTTP
+    - { port: '443', proto: 'tcp' }     # HTTPS
+    - { port: '389', proto: 'tcp' }     # LDAP
+    - { port: '636', proto: 'tcp' }     # LDAPS
+    - { port: '88', proto: 'tcp' }      # Kerberos
+    - { port: '88', proto: 'udp' }      # Kerberos
+    - { port: '464', proto: 'tcp' }     # Kerberos kadmin
+    - { port: '464', proto: 'udp' }     # Kerberos kadmin
+    - { port: '53', proto: 'tcp' }      # DNS
+    - { port: '53', proto: 'udp' }      # DNS
+    - { port: '123', proto: 'udp' }     # NTP
+
+- name: Sprawdzenie czy FreeIPA jest zainstalowana
+  stat:
+    path: /etc/ipa/default.conf
+  register: ipa_installed
+
+- name: Instalacja FreeIPA Server
+  command: >
+    ipa-server-install
+    --unattended
+    --realm={{ freeipa_realm }}
+    --domain={{ freeipa_domain }}
+    --ds-password={{ freeipa_ds_password }}
+    --admin-password={{ freeipa_admin_password }}
+    --hostname={{ ansible_fqdn }}
+    --ip-address={{ ansible_default_ipv4.address }}
+    --setup-dns
+    --no-forwarders
+    --mkhomedir
+  when: not ipa_installed.stat.exists
+
+- name: Pobranie ticketu Kerberos dla admin
+  shell: echo "{{ freeipa_admin_password }}" | kinit admin
+  when: not ipa_installed.stat.exists
+
+- name: Utworzenie użytkowników testowych
+  ipa_user:
+    name: "{{ item.name }}"
+    givenname: "{{ item.givenname }}"
+    sn: "{{ item.sn }}"
+    password: "{{ item.password }}"
+    state: present
+    ipa_host: "{{ ansible_fqdn }}"
+    ipa_user: admin
+    ipa_pass: "{{ freeipa_admin_password }}"
+  loop: "{{ test_users }}"
+  when: not ipa_installed.stat.exists

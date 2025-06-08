@@ -1,0 +1,21 @@
+---
+# Zmienne globalne
+domain_name: example.local
+realm_name: EXAMPLE.LOCAL
+admin_password: AdminPassword123!
+timezone: Europe/Warsaw
+
+# FreeIPA
+freeipa_realm: "{{ realm_name }}"
+freeipa_domain: "{{ domain_name }}"
+freeipa_ds_password: "DsPassword123!"
+freeipa_admin_password: "{{ admin_password }}"
+
+# MySQL
+mysql_root_password: "RootPassword123!"
+bacula_mysql_password: "BaculaPassword123!"
+
+# Użytkownicy testowi
+test_users:
+  - { name: 'user1', givenname: 'Test', sn: 'User1', password: 'User1Pass123!' }
+  - { name: 'user2', givenname: 'Test', sn: 'User2', password: 'User2Pass123!' }

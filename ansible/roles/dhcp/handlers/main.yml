@@ -1,0 +1,5 @@
+---
+- name: restart dhcp
+  systemd:
+    name: isc-dhcp-server
+    state: restarted

@@ -1,0 +1,36 @@
+Storage {
+  Name = {{ inventory_hostname }}-sd
+  SDPort = 9103
+  WorkingDirectory = "/var/lib/bacula"
+  Pid Directory = "/run/bacula"
+  Maximum Concurrent Jobs = 20
+  SDAddress = {{ ansible_default_ipv4.address }}
+}
+
+Director {
+  Name = {{ inventory_hostname }}-dir
+  Password = "StoragePassword"
+}
+
+Director {
+  Name = {{ inventory_hostname }}-mon
+  Password = "ConsolePassword"
+  Monitor = yes
+}
+
+Device {
+  Name = FileStorage
+  Media Type = File
+  Archive Device = /backup
+  LabelMedia = yes
+  Random Access = Yes
+  AutomaticMount = yes
+  RemovableMedia = no
+  AlwaysOpen = no
+  Maximum Concurrent Jobs = 5
+}
+
+Messages {
+  Name = Standard
+  director = {{ inventory_hostname }}-dir = all
+}

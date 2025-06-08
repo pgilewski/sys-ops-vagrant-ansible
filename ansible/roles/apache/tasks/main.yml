@@ -1,0 +1,70 @@
+---
+- name: Instalacja Apache i PHP
+  apt:
+    name:
+      - apache2
+      - php
+      - libapache2-mod-php
+      - php-mysql
+      - php-curl
+      - php-gd
+      - php-mbstring
+      - php-xml
+      - php-zip
+    state: present
+
+- name: Włączenie modułów Apache
+  apache2_module:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - rewrite
+    - ssl
+    - headers
+  notify: restart apache
+
+- name: Utworzenie katalogu dla strony
+  file:
+    path: /var/www/{{ domain_name }}
+    state: directory
+    owner: www-data
+    group: www-data
+
+- name: Konfiguracja Virtual Host
+  template:
+    src: virtualhost.conf.j2
+    dest: /etc/apache2/sites-available/{{ domain_name }}.conf
+  notify: restart apache
+
+- name: Włączenie strony
+  command: a2ensite {{ domain_name }}.conf
+  args:
+    creates: /etc/apache2/sites-enabled/{{ domain_name }}.conf
+  notify: restart apache
+
+- name: Wyłączenie domyślnej strony
+  command: a2dissite 000-default.conf
+  args:
+    removes: /etc/apache2/sites-enabled/000-default.conf
+  notify: restart apache
+
+- name: Utworzenie testowej strony PHP
+  copy:
+    content: |
+      <?php
+      echo "<h1>Serwer {{ ansible_hostname }}</h1>";
+      echo "<h2>Informacje o systemie:</h2>";
+      phpinfo();
+      ?>
+    dest: /var/www/{{ domain_name }}/index.php
+    owner: www-data
+    group: www-data
+
+- name: Konfiguracja firewall dla Apache
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - '80'
+    - '443'

@@ -1,0 +1,9 @@
+.vagrant/
+*.log
+*.retry
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

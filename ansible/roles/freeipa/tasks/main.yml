@@ -5,12 +5,21 @@
     line: "{{ ansible_default_ipv4.address }} {{ ansible_fqdn }} {{ ansible_hostname }}"
     insertbefore: BOF
 
-- name: Instalacja pakietów FreeIPA
+- name: Aktualizacja cache pakietów
+  apt:
+    update_cache: yes
+
+- name: Instalacja pakietów FreeIPA z oficjalnych repozytoriów Ubuntu
   apt:
     name:
-      - freeipa-server
-      - freeipa-server-dns
       - freeipa-client
+      - freeipa-common
+      - python3-ipaclient
+      - python3-ipalib
+      - ldap-utils
+      - krb5-user
+      - sssd
+      - sssd-tools
     state: present
 
 - name: Konfiguracja firewall dla FreeIPA
@@ -31,39 +40,12 @@
     - { port: '53', proto: 'udp' }      # DNS
     - { port: '123', proto: 'udp' }     # NTP
 
-- name: Sprawdzenie czy FreeIPA jest zainstalowana
+- name: Sprawdzenie czy FreeIPA client jest skonfigurowany
   stat:
     path: /etc/ipa/default.conf
-  register: ipa_installed
+  register: ipa_configured
 
-- name: Instalacja FreeIPA Server
-  command: >
-    ipa-server-install
-    --unattended
-    --realm={{ freeipa_realm }}
-    --domain={{ freeipa_domain }}
-    --ds-password={{ freeipa_ds_password }}
-    --admin-password={{ freeipa_admin_password }}
-    --hostname={{ ansible_fqdn }}
-    --ip-address={{ ansible_default_ipv4.address }}
-    --setup-dns
-    --no-forwarders
-    --mkhomedir
-  when: not ipa_installed.stat.exists
-
-- name: Pobranie ticketu Kerberos dla admin
-  shell: echo "{{ freeipa_admin_password }}" | kinit admin
-  when: not ipa_installed.stat.exists
-
-- name: Utworzenie użytkowników testowych
-  ipa_user:
-    name: "{{ item.name }}"
-    givenname: "{{ item.givenname }}"
-    sn: "{{ item.sn }}"
-    password: "{{ item.password }}"
-    state: present
-    ipa_host: "{{ ansible_fqdn }}"
-    ipa_user: admin
-    ipa_pass: "{{ freeipa_admin_password }}"
-  loop: "{{ test_users }}"
-  when: not ipa_installed.stat.exists
+- name: Informacja o konfiguracji FreeIPA
+  debug:
+    msg: "FreeIPA client został zainstalowany. Aby skonfigurować połączenie z serwerem FreeIPA, użyj: sudo ipa-client-install --domain={{ freeipa_domain }} --realm={{ freeipa_realm }} --server=srv-main.{{ freeipa_domain }}"
+  when: not ipa_configured.stat.exists

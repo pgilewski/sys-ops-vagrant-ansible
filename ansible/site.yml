@@ -1,13 +1,23 @@
 ---
+- name: Sprawdzenie połączenia z hostami
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Czekanie na dostępność SSH
+      wait_for_connection:
+        timeout: 300
+        delay: 10
+
 - name: Konfiguracja podstawowa wszystkich hostów
   hosts: all
-  become: yes
+  become: true
   roles:
     - common
 
 - name: Konfiguracja serwera głównego
   hosts: srv-main
-  become: yes
+  become: true
+  serial: 1
   roles:
     - freeipa
     - dhcp
@@ -18,12 +28,12 @@
 
 - name: Konfiguracja serwera backup
   hosts: srv-backup
-  become: yes
+  become: true
   roles:
     - bacula
 
 - name: Konfiguracja klientów
   hosts: clients
-  become: yes
+  become: true
   roles:
     - client

@@ -25,11 +25,24 @@
     name: gitlab-ce
     state: present
   environment:
-    EXTERNAL_URL: "http://gitlab.{{ domain_name }}"
+    EXTERNAL_URL: "http://{{ ansible_default_ipv4.address }}:8080"
+
+- name: Konfiguracja GitLab - port i interfejs
+  blockinfile:
+    path: /etc/gitlab/gitlab.rb
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - PORT CONFIG"
+    block: |
+      external_url 'http://{{ ansible_default_ipv4.address }}:8080'
+      nginx['listen_port'] = 8080
+      nginx['listen_addresses'] = ['*']
+      gitlab_rails['gitlab_host'] = '{{ ansible_default_ipv4.address }}'
+      gitlab_rails['gitlab_port'] = 8080
+  notify: reconfigure gitlab
 
 - name: Konfiguracja GitLab - integracja z FreeIPA
   blockinfile:
     path: /etc/gitlab/gitlab.rb
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - LDAP CONFIG"
     block: |
       gitlab_rails['ldap_enabled'] = true
       gitlab_rails['ldap_servers'] = {

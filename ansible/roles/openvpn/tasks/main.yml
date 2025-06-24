@@ -4,6 +4,7 @@
     name:
       - openvpn
       - easy-rsa
+      - expect
     state: present
 
 - name: Utworzenie katalogu dla Easy-RSA
@@ -30,11 +31,17 @@
   args:
     creates: /etc/openvpn/easy-rsa/pki/ca.crt
 
-- name: Generowanie certyfikatu serwera
+- name: Generowanie żądania certyfikatu serwera
   shell: |
     cd /etc/openvpn/easy-rsa
-    ./easyrsa gen-req server nopass
-    ./easyrsa sign-req server server
+    echo "server" | ./easyrsa gen-req server nopass
+  args:
+    creates: /etc/openvpn/easy-rsa/pki/reqs/server.req
+
+- name: Podpisywanie certyfikatu serwera
+  shell: |
+    cd /etc/openvpn/easy-rsa
+    echo "yes" | ./easyrsa sign-req server server
   args:
     creates: /etc/openvpn/easy-rsa/pki/issued/server.crt
 

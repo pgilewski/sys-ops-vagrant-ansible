@@ -52,12 +52,16 @@ Vagrant.configure("2") do |config|
       vb.name = "client2"
       vb.gui = true
     end
-  end
-
-  # Provisioning z Ansible
-  config.vm.provision "ansible" do |ansible|
-    ansible.playbook = "ansible/site.yml"
-    ansible.inventory_path = "ansible/inventory.yml"
-    ansible.limit = "all"
+    
+    # Provisioning z Ansible - uruchamiamy tylko po ostatnim VM
+    client.vm.provision "ansible" do |ansible|
+      ansible.playbook = "ansible/site.yml"
+      ansible.inventory_path = "ansible/inventory.yml"
+      ansible.limit = "all"
+      ansible.compatibility_mode = "2.0"
+      ansible.become = true
+      ansible.become_user = "root"
+      ansible.host_key_checking = false
+    end
   end
 end

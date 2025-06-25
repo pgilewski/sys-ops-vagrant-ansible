@@ -1,7 +1,7 @@
 ---
 - name: restart bacula-director
   systemd:
-    name: bacula-director
+    name: bacula-dir
     state: restarted
 
 - name: restart bacula-storage

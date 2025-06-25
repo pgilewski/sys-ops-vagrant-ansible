@@ -1,26 +1,90 @@
 ---
+- name: Pobieranie klucza weryfikacji Bacula
+  get_url:
+    url: https://www.bacula.org/downloads/Bacula-4096-Distribution-Verification-key.asc
+    dest: /tmp/bacula-key.asc
+
+- name: Dodanie klucza GPG Bacula
+  apt_key:
+    file: /tmp/bacula-key.asc
+    state: present
+
+- name: Dodanie oficjalnego repozytorium Bacula
+  apt_repository:
+    repo: "deb [arch=amd64] https://bacula.org/packages/5f1e8eefd1016/debs/11.0.6/jammy/amd64/ jammy main"
+    state: present
+
+- name: Aktualizacja cache apt po dodaniu repozytorium
+  apt:
+    update_cache: yes
+
 - name: Instalacja MySQL dla Bacula
   apt:
     name:
       - mysql-server
-      - python3-mysqldb
+      - python3-pymysql
     state: present
 
-- name: Zabezpieczenie instalacji MySQL
+- name: Uruchomienie MySQL
+  systemd:
+    name: mysql
+    enabled: true
+    state: started
+
+- name: Sprawdzenie czy root ma hasło
+  shell: mysql -u root -e "SELECT 1"
+  register: mysql_root_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Zabezpieczenie instalacji MySQL (ustawienie hasła root)
   mysql_user:
     name: root
     password: "{{ mysql_root_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     host: localhost
     state: present
+  when: mysql_root_check.rc == 0
+
+- name: Utworzenie pliku .my.cnf dla root
+  template:
+    src: my.cnf.j2
+    dest: /root/.my.cnf
+    owner: root
+    group: root
+    mode: '0600'
 
 - name: Instalacja komponentów Bacula
   apt:
     name:
-      - bacula-server
+      - bacula
       - bacula-client
       - bacula-console
+      - bacula-mysql
+      - bacula-common
     state: present
+
+- name: Utworzenie katalogu konfiguracyjnego Bacula
+  file:
+    path: /etc/bacula
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Kopiowanie domyślnych plików konfiguracyjnych Bacula
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0644'
+    remote_src: yes
+  loop:
+    - { src: '/usr/share/bacula-common/defconfig/bacula-dir.conf', dest: '/etc/bacula/bacula-dir.conf' }
+    - { src: '/usr/share/bacula-common/defconfig/bacula-sd.conf', dest: '/etc/bacula/bacula-sd.conf' }
+    - { src: '/usr/share/bacula-common/defconfig/bacula-fd.conf', dest: '/etc/bacula/bacula-fd.conf' }
+    - { src: '/usr/share/bacula-common/defconfig/bconsole.conf', dest: '/etc/bacula/bconsole.conf' }
 
 - name: Utworzenie bazy danych Bacula
   mysql_db:
@@ -52,14 +116,20 @@
 - name: Konfiguracja Bacula Director
   template:
     src: bacula-dir.conf.j2
-    dest: /etc/bacula/bacula-dir.conf
+    dest: /opt/bacula/etc/bacula-dir.conf
+    owner: bacula
+    group: bacula
+    mode: '0640'
     backup: yes
   notify: restart bacula-director
 
 - name: Konfiguracja Bacula Storage
   template:
     src: bacula-sd.conf.j2
-    dest: /etc/bacula/bacula-sd.conf
+    dest: /opt/bacula/etc/bacula-sd.conf
+    owner: bacula
+    group: bacula
+    mode: '0640'
     backup: yes
   notify: restart bacula-storage
 
@@ -77,6 +147,7 @@
     port: "{{ item }}"
     proto: tcp
   loop:
+    - '80'    # Apache/Bacula-Web
     - '9101'  # Director
     - '9102'  # File Daemon
     - '9103'  # Storage Daemon
@@ -84,9 +155,54 @@
 - name: Włączenie i uruchomienie usług Bacula
   systemd:
     name: "{{ item }}"
-    enabled: yes
+    enabled: true
     state: started
   loop:
-    - bacula-director
+    - bacula-dir
     - bacula-sd
     - bacula-fd
+
+- name: Instalacja Apache i PHP dla Bacula-Web
+  apt:
+    name:
+      - apache2
+      - php
+      - php-mysql
+      - php-gd
+      - php-curl
+      - php-json
+      - libapache2-mod-php
+      - wget
+      - unzip
+    state: present
+
+- name: Pobieranie Bacula-Web
+  get_url:
+    url: https://github.com/bacula-web/bacula-web/archive/refs/tags/v8.5.4.zip
+    dest: /tmp/bacula-web.zip
+
+- name: Rozpakowanie Bacula-Web
+  unarchive:
+    src: /tmp/bacula-web.zip
+    dest: /tmp/
+    remote_src: yes
+
+- name: Kopiowanie Bacula-Web do Apache
+  shell: |
+    cp -r /tmp/bacula-web-8.5.4 /var/www/html/bacula-web
+    chown -R www-data:www-data /var/www/html/bacula-web
+    chmod -R 755 /var/www/html/bacula-web
+
+- name: Konfiguracja Bacula-Web
+  template:
+    src: bacula-web-config.php.j2
+    dest: /var/www/html/bacula-web/application/config/config.php
+    owner: www-data
+    group: www-data
+    mode: '0644'
+
+- name: Włączenie Apache
+  systemd:
+    name: apache2
+    enabled: true
+    state: started

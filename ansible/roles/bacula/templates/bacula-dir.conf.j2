@@ -63,6 +63,13 @@ Schedule {
   Run = Incremental mon-sat at 23:05
 }
 
+Schedule {
+  Name = "WeeklyCycleAfterBackup"
+  Run = Full 1st sun at 23:10
+  Run = Differential 2nd-5th sun at 23:10
+  Run = Incremental mon-sat at 23:10
+}
+
 FileSet {
   Name = "Catalog"
   Include {

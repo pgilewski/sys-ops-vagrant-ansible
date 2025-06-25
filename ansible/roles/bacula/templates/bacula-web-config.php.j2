@@ -1,0 +1,41 @@
+<?php
+/*
+ * Bacula-Web configuration file
+ */
+
+// MySQL database connection settings
+$config = array();
+
+// Database connection parameters
+$config['db_type'] = 'mysql';
+$config['db_host'] = 'localhost';
+$config['db_port'] = '3306';
+$config['db_name'] = 'bacula';
+$config['db_user'] = 'bacula';
+$config['db_password'] = '{{ bacula_mysql_password }}';
+
+// Bacula catalog
+$config['catalog'] = 'MyCatalog';
+
+// Language (en_US, fr_FR, es_ES, etc.)
+$config['language'] = 'en_US';
+
+// Hide empty pools
+$config['hide_empty_pools'] = true;
+
+// Show inactive clients
+$config['show_inactive_clients'] = false;
+
+// Debug mode
+$config['debug'] = false;
+
+// Date format
+$config['datetime_format'] = 'Y-m-d H:i:s';
+
+// Enable user authentication (set to false for now)
+$config['enable_users_auth'] = false;
+
+// Timezone
+$config['timezone'] = '{{ timezone }}';
+
+?> 

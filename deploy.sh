@@ -1,45 +1,72 @@
 #!/bin/bash
-# Skrypt wdrożeniowy środowiska Linux Server-Client
 
-set -e
+echo "Uruchamianie projektu Vagrant + Ansible..."
 
-echo "=== Wdrażanie środowiska Linux Server-Client ==="
+# Sprawdzenie czy VirtualBox i Vagrant są zainstalowane
+if ! command -v vagrant &> /dev/null; then
+    echo "Vagrant nie jest zainstalowany. Zainstaluj go poprzez: brew install --cask vagrant"
+    exit 1
+fi
 
-# Sprawdzenie wymagań
-command -v vagrant >/dev/null 2>&1 || { echo "Vagrant nie jest zainstalowany!"; exit 1; }
-command -v ansible >/dev/null 2>&1 || { echo "Ansible nie jest zainstalowany!"; exit 1; }
-command -v vboxmanage >/dev/null 2>&1 || { echo "VirtualBox nie jest zainstalowany!"; exit 1; }
+if ! command -v VBoxManage &> /dev/null; then
+    echo "VirtualBox nie jest zainstalowany. Zainstaluj go poprzez: brew install --cask virtualbox"
+    exit 1
+fi
 
-# Uruchomienie maszyn wirtualnych
-echo "1. Uruchamianie maszyn wirtualnych..."
-vagrant up --no-provision
+if ! command -v ansible &> /dev/null; then
+    echo "Ansible nie jest zainstalowany. Zainstaluj go poprzez: brew install ansible"
+    exit 1
+fi
 
-# Czekanie na uruchomienie
-echo "2. Oczekiwanie na uruchomienie maszyn..."
-sleep 30
+echo "Wszystkie wymagane narzędzia są zainstalowane"
 
-# Testowanie połączenia
-echo "3. Testowanie połączenia z maszynami..."
-cd ansible
-ansible all -m ping -i inventory.yml
+# Czyszczenie poprzednich VM jeśli istnieją
+echo "🧹 Czyszczenie poprzednich VM..."
+vagrant destroy -f 2>/dev/null || true
 
-# Uruchomienie playbook
-echo "4. Konfiguracja środowiska..."
-ansible-playbook site.yml -i inventory.yml
+# Uruchomienie VM po kolei z lepszą kontrolą błędów
+echo "🏗️  Uruchamianie VM srv-main..."
+vagrant up srv-main --provider virtualbox
 
-echo "=== Wdrożenie zakończone pomyślnie! ==="
+if [ $? -ne 0 ]; then
+    echo "Błąd podczas uruchamiania srv-main"
+    exit 1
+fi
+
+echo "🏗️  Uruchamianie VM srv-backup..."
+vagrant up srv-backup --provider virtualbox
+
+if [ $? -ne 0 ]; then
+    echo "Błąd podczas uruchamiania srv-backup"
+    exit 1
+fi
+
+echo "🏗️  Uruchamianie VM client1..."
+vagrant up client1 --provider virtualbox
+
+if [ $? -ne 0 ]; then
+    echo "Błąd podczas uruchamiania client1"
+    exit 1
+fi
+
+echo "🏗️  Uruchamianie VM client2 (z provisioningiem Ansible)..."
+vagrant up client2 --provider virtualbox
+
+if [ $? -ne 0 ]; then
+    echo "Błąd podczas uruchamiania client2 lub provisioningu Ansible"
+    echo "Próba ponownego uruchomienia provisioningu..."
+    vagrant provision
+fi
+
+echo "Projekt został uruchomiony!"
+echo "Status VM:"
+vagrant status
+
 echo ""
-echo "Dane dostępowe:"
-echo "FreeIPA: https://192.168.56.10"
-echo "  Login: admin"
-echo "  Hasło: AdminPassword123!"
-echo ""
-echo "GitLab: http://192.168.56.10:8080"
-echo "  Login: root"
-echo "  Hasło: (ustaw przy pierwszym logowaniu)"
-echo ""
-echo "SSH do serwerów:"
-echo "  vagrant ssh srv-main"
-echo "  vagrant ssh srv-backup"
-echo "  vagrant ssh client1"
-echo "  vagrant ssh client2"
+echo "🔗 Dostępne usługi:"
+echo "   - GitLab: http://192.168.56.10:8080"
+echo "   - Apache: http://192.168.56.10"
+echo "   - srv-main: ssh vagrant@192.168.56.10"
+echo "   - srv-backup: ssh vagrant@192.168.56.11"
+echo "   - client1: ssh vagrant@192.168.56.101"
+echo "   - client2: ssh vagrant@192.168.56.102"

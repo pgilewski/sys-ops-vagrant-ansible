@@ -1,20 +1,12 @@
 [global]
-    workgroup = EXAMPLE
+    workgroup = WORKGROUP
     server string = %h server (Samba, Ubuntu)
-    security = ads
-    realm = {{ freeipa_realm }}
+    security = user
     encrypt passwords = true
     
-    # Integracja z FreeIPA
-    kerberos method = system keytab
-    client signing = yes
-    client use spnego = yes
-    
-    # Winbind
-    idmap config * : backend = tdb
-    idmap config * : range = 10000-20000
-    idmap config EXAMPLE : backend = rid
-    idmap config EXAMPLE : range = 10000000-19999999
+    # Standalone server configuration
+    map to guest = bad user
+    guest account = nobody
     
     # Logi
     log file = /var/log/samba/log.%m

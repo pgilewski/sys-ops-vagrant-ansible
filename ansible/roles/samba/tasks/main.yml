@@ -38,6 +38,13 @@
     - '139'
     - '445'
 
+- name: Wyłączenie winbind (nie potrzebne w standalone mode)
+  systemd:
+    name: winbind
+    enabled: false
+    state: stopped
+  ignore_errors: true
+
 - name: Włączenie i uruchomienie Samba
   systemd:
     name: "{{ item }}"
@@ -46,4 +53,3 @@
   loop:
     - smbd
     - nmbd
-    - winbind

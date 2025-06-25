@@ -1,0 +1,13 @@
+#
+# Bacula User Agent (or Console) Configuration File
+#
+# Copyright (C) 2000-2022 Kern Sibbald
+# License: BSD 2-Clause; see file LICENSE-FOSS
+#
+
+Director {
+  Name = {{ inventory_hostname }}-dir
+  DIRport = 9101
+  address = {{ ansible_default_ipv4.address }}
+  Password = "ConsolePassword"
+} 

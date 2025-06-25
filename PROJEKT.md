@@ -500,7 +500,6 @@ all:
 - name: Generowanie certyfikatu serwera
   shell: |
     cd /etc/openvpn/easy-rsa
-    echo "server" | ./easyrsa gen-req server nopass
     echo "yes" | ./easyrsa sign-req server server
   args:
     creates: /etc/openvpn/easy-rsa/pki/issued/server.crt
@@ -610,31 +609,70 @@ echo "=== Koniec weryfikacji ==="
 #### 5.1.1 Problem z wersją Ansible
 
 **Błąd**: `Vagrant gathered an unknown Ansible version`
+**Przyczyna**: Vagrant nie mógł rozpoznać wersji Ansible zainstalowanej w systemie
 **Rozwiązanie**: Dodano `ansible.compatibility_mode = "2.0"` w Vagrantfile
 
 #### 5.1.2 SSH Connection Timeouts
 
-**Błąd**: Nieprawidłowe ścieżki do kluczy SSH
-**Rozwiązanie**: Poprawiono ścieżki w inventory.yml i dodano `host_key_checking = False`
+**Błąd**: Ansible nie mógł się połączyć z maszynami wirtualnymi
+**Przyczyna**:
 
-#### 5.1.3 Konflikt portów GitLab
+- Nieprawidłowe ścieżki do kluczy SSH w inventory.yml (`../.vagrant` zamiast `./.vagrant`)
+- Brak zaufania do kluczy hostów SSH
+  **Rozwiązanie**:
+- Poprawiono ścieżki w inventory.yml
+- Dodano `host_key_checking = False` w ansible.cfg
+- Dodano klucze SSH do known_hosts
 
-**Błąd**: Puma i Nginx używały tego samego portu 8080
-**Rozwiązanie**: Nginx na porcie 8080, Puma na porcie 8081
+#### 5.1.3 Problemy z pakietami FreeIPA
 
-#### 5.1.4 Problem z pakietami Bacula
+**Błąd**: `No package matching 'freeipa-server' is available`
+**Przyczyna**: Ubuntu 22.04 nie ma FreeIPA w domyślnych repozytoriach, a PPA było nieaktywne
+**Rozwiązanie**: Zastąpiono instalacją oficjalnych pakietów `freeipa-client`, `freeipa-common` z repozytoriów Ubuntu
 
-**Błąd**: Brak oficjalnych pakietów dla Ubuntu 22.04
-**Rozwiązanie**: Użycie oficjalnego repozytorium Bacula.org
+#### 5.1.4 OpenVPN - zawieszenie podczas generowania certyfikatów
 
-#### 5.1.5 Konfiguracja Samba
+**Błąd**: Proces `./easyrsa sign-req server server` oczekiwał na interakcję użytkownika
+**Przyczyna**: Brak automatycznych odpowiedzi w skryptach Easy-RSA
+**Rozwiązanie**: Dodano automatyczne odpowiedzi (`echo "yes" |`) do komend generowania certyfikatów
 
-**Błąd**: Winbind nie mógł się połączyć z domeną
-**Rozwiązanie**: Zmiana na standalone server zamiast domain member
+#### 5.1.5 GitLab - konflikt portów (główny problem)
+
+**Błąd**: `502 error: Waiting for GitLab to boot` + `connection refused`
+**Przyczyna**:
+
+- Puma (aplikacja Rails) i Nginx próbowały używać tego samego portu 8080
+- GitLab workhorse nie mógł się połączyć z puma
+  **Rozwiązanie**:
+- Nginx pozostał na porcie 8080
+- Puma przeniesiona na port 8081
+- Dodano `puma['port'] = 8081` w konfiguracji Ansible
+
+#### 5.1.6 Samba Winbind - problem z domeną
+
+**Błąd**: `Unable to restart service winbind: Job for winbind.service failed`
+**Przyczyna**: Samba była skonfigurowana jako domain member (`security = ads`), ale FreeIPA nie było skonfigurowane jako serwer domeny
+**Rozwiązanie**: Zmieniono Samba na standalone server (`security = user`, `workgroup = WORKGROUP`), wyłączono winbind
+
+#### 5.1.7 MySQL - problemy z konfiguracją
+
+**Błąd**: `Access denied for user 'root'@'localhost' (using password: NO)`
+**Przyczyna**: Nieprawidłowa sekwencja konfiguracji MySQL dla Ubuntu 22.04
+**Rozwiązanie**:
+
+- Dodano sprawdzenie stanu MySQL przed ustawieniem hasła
+- Utworzenie pliku `.my.cnf` dla automatycznego uwierzytelniania
+
+#### 5.1.8 Bacula-Web - interfejs zarządzania
+
+**Implementacja**: Dodano webowy interfejs do zarządzania Bacula
+**Wymagania**: Apache, PHP, moduły php-sqlite3
+**Instalacja**: Composer z automatyczną akceptacją wtyczek
+**Rezultat**: Działający interfejs na http://192.168.56.11/bacula-web/
 
 ### 5.2 Rezultaty końcowe
 
-#### 5.2.1 Funkcjonujące usługi
+### 5.3 Funkcjonujące usługi
 
 ```
 === Weryfikacja środowiska ===
@@ -649,23 +687,14 @@ OpenVPN: active
 === Koniec weryfikacji ===
 ```
 
-### 5.3 Zalety rozwiązania
-
-1. **Automatyzacja**: Pełna automatyzacja przez Vagrant + Ansible
-2. **Skalowalność**: Łatwe dodanie kolejnych klientów
-3. **Bezpieczeństwo**: Wielowarstwowe zabezpieczenia
-4. **Monitoring**: Skrypty weryfikacji stanu
-5. **Dokumentacja**: Kompletna dokumentacja kodu
-6. **Odtwarzalność**: Infrastruktura jako kod (IaC)
-
 ### 5.4 Możliwe rozszerzenia
 
 1. **Monitoring**: Dodanie Prometheus + Grafana
 2. **Load Balancing**: HAProxy dla wysokiej dostępności
 3. **Container**: Integracja Docker + Kubernetes
 4. **CI/CD**: Rozszerzenie GitLab pipelines
-5. **Backup**: Automatyczne harmonogramy Bacula
-6. **Security**: Integracja z systemami SIEM
+5. **Backup**: Naprawa działania Bacula i stworzenie distaster recovery planu
+6. **Security**: Przeprowadzic audyt bezpieczenstwa i zaimplementowac zmiany
 
 ---
 

@@ -84,7 +84,6 @@
     - { src: '/usr/share/bacula-common/defconfig/bacula-dir.conf', dest: '/etc/bacula/bacula-dir.conf' }
     - { src: '/usr/share/bacula-common/defconfig/bacula-sd.conf', dest: '/etc/bacula/bacula-sd.conf' }
     - { src: '/usr/share/bacula-common/defconfig/bacula-fd.conf', dest: '/etc/bacula/bacula-fd.conf' }
-    - { src: '/usr/share/bacula-common/defconfig/bconsole.conf', dest: '/etc/bacula/bconsole.conf' }
 
 - name: Utworzenie bazy danych Bacula
   mysql_db:
@@ -132,6 +131,15 @@
     mode: '0640'
     backup: yes
   notify: restart bacula-storage
+
+- name: Konfiguracja bconsole
+  template:
+    src: bconsole.conf.j2
+    dest: /etc/bacula/bconsole.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
 
 - name: Utworzenie katalogu dla backupów
   file:

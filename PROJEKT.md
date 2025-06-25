@@ -687,7 +687,32 @@ OpenVPN: active
 === Koniec weryfikacji ===
 ```
 
-### 5.4 Możliwe rozszerzenia
+### 5.4 Problemy
+
+#### 5.4.1 MySQL - problemy z konfiguracją
+
+**Problem:**
+Backup z użyciem bacula zwraca status "Error"
+
+`vagrant ssh srv-backup -c "echo 'status dir' | sudo /opt/bacula/bin/bconsole -c /etc/bacula/bconsole.conf"`
+zwraca:
+
+```
+====
+
+Running Jobs:
+Console connected using TLS at 25-Jun-25 14:07
+No Jobs running.
+====
+
+Terminated Jobs:
+ JobId  Level     Files      Bytes   Status   Finished        Name
+====================================================================
+     1  Full           0         0   Error    25-Jun-25 14:04 BackupCatalog
+     2  Full           0         0   Error    25-Jun-25 14:07 BackupCatalog
+```
+
+### 5.5 Możliwe rozszerzenia
 
 1. **Monitoring**: Dodanie Prometheus + Grafana
 2. **Load Balancing**: HAProxy dla wysokiej dostępności

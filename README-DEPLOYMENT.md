@@ -13,7 +13,7 @@ brew install ansible
 
 ```bash
 # Uruchomienie całego projektu
-./fix_and_deploy.sh
+./deploy.sh
 ```
 
 ## Ręczne uruchomienie
@@ -32,7 +32,6 @@ Po uruchomieniu dostępne będą:
 
 - **GitLab**: http://192.168.56.10:8080
 - **Apache**: http://192.168.56.10
-- **FreeIPA**: https://192.168.56.10
 - **SSH do serwerów**:
   - srv-main: `ssh vagrant@192.168.56.10`
   - srv-backup: `ssh vagrant@192.168.56.11`

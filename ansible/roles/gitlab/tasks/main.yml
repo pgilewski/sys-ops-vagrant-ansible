@@ -37,6 +37,7 @@
       nginx['listen_addresses'] = ['*']
       gitlab_rails['gitlab_host'] = '{{ ansible_default_ipv4.address }}'
       gitlab_rails['gitlab_port'] = 8080
+      puma['port'] = 8081
   notify: reconfigure gitlab
 
 - name: Konfiguracja GitLab - integracja z FreeIPA

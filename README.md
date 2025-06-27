@@ -1,138 +1,68 @@
-# Projekt: Kompleksowe rozwiązanie serwer-klient w środowisku Linux
+# 🚀 Instrukcja uruchomienia projektu
 
-## Opis
-
-Projekt akademicki przedstawiający kompletne rozwiązanie infrastruktury IT opartej na systemach Linux przy użyciu Vagrant i Ansible.
-
-## Wymagania
-
-- VirtualBox
-- Vagrant
-- Ansible
-- 200 GB wolnego miejsca na dysku
-
-## Struktura projektu
-
-```
-sys-ops-vagrant-ansible/
-├── Vagrantfile              # Definicja maszyn wirtualnych
-├── ansible/                 # Konfiguracja Ansible
-│   ├── inventory.yml        # Inwentarz hostów
-│   ├── site.yml            # Główny playbook
-│   └── roles/              # Role Ansible
-├── deploy.sh               # Skrypt wdrożeniowy
-├── verify.sh              # Skrypt weryfikacyjny
-└── cleanup.sh             # Skrypt czyszczący
-```
-
-## Instalacja
-
-### 1. Przygotowanie środowiska
+## Wymagania (macOS)
 
 ```bash
-# Ubuntu/Debian
-sudo apt update
-sudo apt install virtualbox vagrant ansible git
-
-# Windows (z Chocolatey)
-choco install virtualbox vagrant git
+# Instalacja narzędzi
+brew install --cask virtualbox
+brew install --cask vagrant
+brew install ansible
 ```
 
-### 2. Klonowanie projektu
+## Szybkie uruchomienie
 
 ```bash
-git clone <repo-url>
-cd sys-ops-vagrant-ansible
-```
-
-### 3. Wdrożenie
-
-```bash
+# Uruchomienie całego projektu
 ./deploy.sh
 ```
 
-## Komponenty systemu
-
-### Serwery
-
-- **srv-main** (192.168.56.10) - Serwer główny
-
-  - FreeIPA - zarządzanie tożsamością
-  - DHCP Server
-  - Samba - udostępnianie plików
-  - Apache + PHP
-  - GitLab CE
-  - OpenVPN
-
-- **srv-backup** (192.168.56.11) - Serwer backupu
-  - Bacula Director
-  - Bacula Storage
-  - MySQL
-
-### Klienci
-
-- **client1** (192.168.56.101) - Ubuntu Desktop
-- **client2** (192.168.56.102) - Ubuntu Desktop
-
-## Dane dostępowe
-
-### FreeIPA
-
-- URL: https://192.168.56.10
-- Login: admin
-- Hasło: AdminPassword123!
-
-### GitLab
-
-- URL: http://192.168.56.10:8080
-- Login: root
-- Hasło: (ustaw przy pierwszym logowaniu)
-
-### Użytkownicy testowi
-
-- user1 / User1Pass123!
-- user2 / User2Pass123!
-
-## Zarządzanie
-
-### SSH do maszyn
+## Ręczne uruchomienie
 
 ```bash
-vagrant ssh srv-main
-vagrant ssh srv-backup
-vagrant ssh client1
-vagrant ssh client2
+# 1. Uruchomienie VM
+vagrant up
+
+# 2. Jeśli provisioning Ansible nie uruchomił się automatycznie
+vagrant provision
 ```
 
-### Restart usług
+## 🔗 Dostępne usługi
+
+Po uruchomieniu dostępne będą:
+
+- **GitLab**: http://192.168.56.10:8080
+- **Apache**: http://192.168.56.10
+- **SSH do serwerów**:
+  - srv-main: `ssh vagrant@192.168.56.10`
+  - srv-backup: `ssh vagrant@192.168.56.11`
+  - client1: `ssh vagrant@192.168.56.101`
+  - client2: `ssh vagrant@192.168.56.102`
+
+## ⏰ Czas uruchomienia
+
+- **VM**: ~5-10 minut
+- **GitLab**: dodatkowe 2-3 minuty po provisioning
+
+Jeśli GitLab pokazuje "502 error", poczekaj - strona automatycznie się odświeży gdy będzie gotowa.
+
+## 🛠️ Troubleshooting
+
+Jeśli wystąpią problemy, sprawdź `TROUBLESHOOTING.md`
 
 ```bash
-cd ansible
-ansible-playbook site.yml --tags restart
+# Restart całego środowiska
+vagrant destroy -f
+./fix_and_deploy.sh
+
+# Sprawdzenie statusu
+vagrant status
+
+# Logi GitLab
+vagrant ssh srv-main -c "sudo gitlab-ctl status"
 ```
 
-### Weryfikacja
+## 📋 Architektura
 
-```bash
-./verify.sh
-```
-
-### Czyszczenie środowiska
-
-```bash
-./cleanup.sh
-```
-
-## Rozwiązywanie problemów
-
-TODO
-
-### Problem z Ansible
-
-```bash
-ansible all -m ping -i ansible/inventory.yml
-```
-
-## Autor
-
-Przemysław Gilewski
+- **srv-main**: FreeIPA, DHCP, Samba, Apache, GitLab, OpenVPN
+- **srv-backup**: Bacula (backup)
+- **client1, client2**: Klienci testowi
